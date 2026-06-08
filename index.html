@@ -1,0 +1,2249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loyalife Multi-Client Program Analysis</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #0F1F3D;
+      --border: #E2E8F0;
+      --bg: #F8FAFC;
+      --muted: #64748B;
+      --slate: #1E293B;
+      --white: #FFFFFF;
+      --red: #DC2626;
+      --red-light: #FEF2F2;
+      --gold: #B45309;
+      --gold-light: #FFFBEB;
+      --green: #059669;
+      --green-light: #ECFDF5;
+      --sky: #0EA5E9;
+      --sky-light: #F0F9FF;
+      --indigo: #4338CA;
+      --indigo-light: #EEF2FF;
+      --sbd: #1E40AF;
+      --lupin: #6D28D9;
+      --worldia: #0369A1;
+      --alkem: #065F46;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: white;
+      color: var(--slate);
+    }
+
+    @media print {
+      body {
+        background: white;
+      }
+      .page {
+        margin: 0;
+      }
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 13mm 14mm 10mm;
+      background: white;
+      page-break-after: always;
+      position: relative;
+    }
+
+    .client-header {
+      width: calc(100% + 28mm);
+      margin-left: -14mm;
+      margin-right: -14mm;
+      margin-bottom: 10px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-radius: 0;
+    }
+
+    .ch-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 18pt;
+      font-weight: 700;
+      color: white;
+    }
+
+    .ch-sub {
+      font-size: 8pt;
+      color: white;
+      opacity: 0.82;
+      line-height: 1.5;
+      max-width: 400px;
+      margin-top: 2px;
+    }
+
+    .ch-meta {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 7pt;
+      color: white;
+      text-align: right;
+    }
+
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .kpi-box {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      border-radius: 5px;
+      padding: 7px 8px;
+      text-align: center;
+    }
+
+    .kpi-value {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13pt;
+      line-height: 1;
+      color: var(--navy);
+    }
+
+    .kpi-value.kv-sky {
+      color: var(--sky);
+    }
+
+    .kpi-value.kv-green {
+      color: var(--green);
+    }
+
+    .kpi-value.kv-warn {
+      color: var(--gold);
+    }
+
+    .kpi-value.kv-red {
+      color: var(--red);
+    }
+
+    .kpi-label {
+      font-size: 6.5pt;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.3px;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .kpi-def {
+      font-size: 6pt;
+      font-style: italic;
+      color: var(--muted);
+      opacity: 0.8;
+      display: block;
+      margin-top: 1px;
+    }
+
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 7px;
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .snap-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      padding: 9px 11px;
+    }
+
+    .snap-row {
+      display: flex;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 7.5pt;
+    }
+
+    .snap-row:last-child {
+      border-bottom: none;
+    }
+
+    .snap-key {
+      width: 110px;
+      flex-shrink: 0;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .snap-val {
+      flex: 1;
+      color: var(--slate);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 7pt;
+    }
+
+    .funnel {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: nowrap;
+      margin: 8px 0;
+    }
+
+    .f-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .f-circle {
+      border-radius: 50%;
+      border: 2px solid;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 7pt;
+      font-weight: 600;
+      color: white;
+      text-align: center;
+    }
+
+    .f-circle.size-xl {
+      width: 60px;
+      height: 60px;
+    }
+
+    .f-circle.size-lg {
+      width: 50px;
+      height: 50px;
+    }
+
+    .f-circle.size-md {
+      width: 40px;
+      height: 40px;
+    }
+
+    .f-circle.size-sm {
+      width: 32px;
+      height: 32px;
+    }
+
+    .f-label {
+      font-size: 6.5pt;
+      color: var(--muted);
+      margin-top: 3px;
+      text-align: center;
+      max-width: 55px;
+      line-height: 1.2;
+    }
+
+    .f-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 14px;
+    }
+
+    .f-pct {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 7pt;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .f-line {
+      color: var(--border);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 3px 0;
+    }
+
+    .bar-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 6.5pt;
+      color: var(--muted);
+      width: 95px;
+      flex-shrink: 0;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 8px;
+      background: #F1F5F9;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+
+    .bar-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 7pt;
+      min-width: 55px;
+      text-align: right;
+      color: var(--slate);
+    }
+
+    .gap-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 8px 10px;
+      border-left: 4px solid;
+    }
+
+    .gap-card.critical {
+      border-left-color: var(--red);
+      background: #FFFAFA;
+    }
+
+    .gap-card.major {
+      border-left-color: var(--gold);
+      background: #FFFDF5;
+    }
+
+    .gap-card.moderate {
+      border-left-color: var(--sky);
+      background: var(--sky-light);
+    }
+
+    .gap-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 8pt;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .gap-card.critical .gap-title {
+      color: var(--red);
+    }
+
+    .gap-card.major .gap-title {
+      color: var(--gold);
+    }
+
+    .gap-card.moderate .gap-title {
+      color: var(--sky);
+    }
+
+    .gap-sev {
+      display: inline;
+      font-size: 6pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border-radius: 10px;
+      margin-left: 4px;
+    }
+
+    .gap-card.critical .gap-sev {
+      background: var(--red);
+      color: white;
+    }
+
+    .gap-card.major .gap-sev {
+      background: var(--gold);
+      color: white;
+    }
+
+    .gap-card.moderate .gap-sev {
+      background: var(--sky);
+      color: white;
+    }
+
+    .gap-stat {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 8pt;
+      font-weight: 600;
+      display: block;
+      margin: 3px 0;
+    }
+
+    .gap-body {
+      font-size: 7.5pt;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .action-item {
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+      border: 1px solid var(--border);
+      border-left: 4px solid;
+      border-radius: 5px;
+      padding: 7px 10px;
+      margin-bottom: 7px;
+    }
+
+    .action-item.p1 {
+      border-left-color: var(--red);
+      background: #FFFAFA;
+    }
+
+    .action-item.p2 {
+      border-left-color: #F97316;
+      background: #FFF8F5;
+    }
+
+    .action-item.p3 {
+      border-left-color: var(--gold);
+      background: var(--gold-light);
+    }
+
+    .action-item.p4 {
+      border-left-color: var(--sky);
+      background: var(--sky-light);
+    }
+
+    .action-item.p5 {
+      border-left-color: var(--green);
+      background: var(--green-light);
+    }
+
+    .a-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-family: 'Syne', sans-serif;
+      font-size: 9pt;
+      font-weight: 700;
+      color: white;
+    }
+
+    .action-item.p1 .a-num {
+      background: var(--red);
+    }
+
+    .action-item.p2 .a-num {
+      background: #F97316;
+    }
+
+    .action-item.p3 .a-num {
+      background: var(--gold);
+    }
+
+    .action-item.p4 .a-num {
+      background: var(--sky);
+    }
+
+    .action-item.p5 .a-num {
+      background: var(--green);
+    }
+
+    .a-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 8pt;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .action-item.p1 .a-title {
+      color: var(--red);
+    }
+
+    .action-item.p2 .a-title {
+      color: #C2410C;
+    }
+
+    .action-item.p3 .a-title {
+      color: var(--gold);
+    }
+
+    .action-item.p4 .a-title {
+      color: #0369A1;
+    }
+
+    .action-item.p5 .a-title {
+      color: var(--green);
+    }
+
+    .a-desc {
+      font-size: 7.5pt;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .a-tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 6pt;
+      color: var(--muted);
+      margin-top: 3px;
+      display: block;
+    }
+
+    .callout {
+      padding: 6px 10px;
+      border-radius: 4px;
+      border-left: 3px solid;
+      font-size: 7.5pt;
+      line-height: 1.5;
+    }
+
+    .callout.c-red {
+      background: var(--red-light);
+      border-color: var(--red);
+      color: #991B1B;
+    }
+
+    .callout.c-amber {
+      background: var(--gold-light);
+      border-color: var(--gold);
+      color: #92400E;
+    }
+
+    .callout.c-blue {
+      background: var(--sky-light);
+      border-color: var(--sky);
+      color: #0369A1;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 7pt;
+      font-weight: 700;
+      font-family: 'Syne', sans-serif;
+      margin-right: 4px;
+    }
+
+    .b-red {
+      background: var(--red-light);
+      color: var(--red);
+    }
+
+    .b-amber {
+      background: var(--gold-light);
+      color: var(--gold);
+    }
+
+    .b-green {
+      background: var(--green-light);
+      color: var(--green);
+    }
+
+    .b-gray {
+      background: var(--bg);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 11px;
+    }
+
+    .col64 {
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 11px;
+    }
+
+    .gap-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .page-footer {
+      position: absolute;
+      bottom: 8mm;
+      left: 14mm;
+      right: 14mm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 6.5pt;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      padding-top: 4px;
+    }
+
+    .mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7.5pt;
+      margin: 6px 0;
+    }
+
+    .mini-table th {
+      font-size: 6.5pt;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 3px 6px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .mini-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .mini-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .mono {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 7pt;
+    }
+
+    .cover-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 28pt;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 4px;
+    }
+
+    .cover-subtitle {
+      font-size: 10pt;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    .cover-border {
+      height: 2.5px;
+      background: var(--navy);
+      margin-bottom: 12px;
+    }
+
+    .cover-intro {
+      font-size: 8.5pt;
+      color: var(--muted);
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .client-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .client-card {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      border-left: 4px solid;
+    }
+
+    .cc-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 11pt;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+
+    .cc-use {
+      font-size: 7.5pt;
+      color: var(--muted);
+      font-style: italic;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .cc-metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      font-size: 7pt;
+    }
+
+    .cc-metric {
+      display: flex;
+      gap: 4px;
+    }
+
+    .cc-metric-label {
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .cc-metric-val {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 600;
+      color: var(--slate);
+    }
+
+    .cc-pending {
+      font-size: 6.5pt;
+      color: var(--muted);
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    .comparison-table {
+      margin-top: 10px;
+    }
+
+    .page-content {
+      padding-bottom: 15mm;
+    }
+  </style>
+</head>
+<body>
+
+<!-- PAGE 1: COVER -->
+<div class="page">
+  <div class="page-content">
+    <div class="cover-title">Loyalife</div>
+    <div class="cover-subtitle">Multi-Client Program Analysis · Q1–Q2 2026</div>
+    <div class="cover-border"></div>
+
+    <div class="cover-intro">Independent analysis of four active Loyalife programs — engagement metrics, platform gaps, and prioritized growth actions.</div>
+
+    <div class="client-cards">
+      <div class="client-card" style="border-left-color: var(--sbd);">
+        <div class="cc-name" style="color: var(--sbd);">SBD India</div>
+        <div class="cc-use">Rewards hardware retailers and contractors for stocking SBD tools — invoice-based earning via the PowerPerks mobile app.</div>
+        <div class="cc-metrics">
+          <div class="cc-metric">
+            <span class="cc-metric-label">Members</span>
+            <span class="cc-metric-val">15,649</span>
+          </div>
+          <div class="cc-metric">
+            <span class="cc-metric-label">Volume</span>
+            <span class="cc-metric-val">₹7.58 Cr</span>
+          </div>
+          <div class="cc-metric">
+            <span class="cc-metric-label">Engagement</span>
+            <span class="cc-metric-val">2.9%</span>
+          </div>
+          <div class="cc-metric">
+            <span class="cc-metric-label">Redemption</span>
+            <span class="cc-metric-val">1.4%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="client-card" style="border-left-color: var(--lupin);">
+        <div class="cc-name" style="color: var(--lupin);">Lupin Samruddhi</div>
+        <div class="cc-use">Incentivises drug retailers to stock eligible Lupin medicines — points earned per invoice scan after OCR verification.</div>
+        <div class="cc-metrics">
+          <div class="cc-metric">
+            <span class="cc-metric-label">Members</span>
+            <span class="cc-metric-val">69,560</span>
+          </div>
+          <div class="cc-metric">
+            <span class="cc-metric-label">Volume</span>
+            <span class="cc-metric-val">₹0</span>
+          </div>
+          <div class="cc-metric">
+            <span class="cc-metric-label">Engagement</span>
+            <span class="cc-metric-val">0.21%</span>
+          </div>
+          <div class="cc-metric">
+            <span class="cc-metric-label">Redemption</span>
+            <span class="cc-metric-val">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="client-card" style="border-left-color: var(--worldia);">
+        <div class="cc-name" style="color: var(--worldia);">Worldia</div>
+        <div class="cc-use">Rewards French travel agency consultants per euro of bookings made through the Worldia platform.</div>
+        <div class="cc-metrics">
+          <div class="cc-metric">
+            <span class="cc-metric-label">Members</span>
+            <span class="cc-metric-val">2,326</span>
+          </div>
+          <div class="cc-metric">
+            <span class="cc-metric-label">Volume</span>
+            <span class="cc-metric-val">€84.3M</span>
+          </div>
+          <div class="cc-metric">
+            <span class="cc-metric-label">Engagement</span>
+            <span class="cc-metric-val">73.8%</span>
+          </div>
+          <div class="cc-metric">
+            <span class="cc-metric-label">Redemption</span>
+            <span class="cc-metric-val">48.6%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="client-card" style="border-left-color: var(--alkem);">
+        <div class="cc-name" style="color: var(--alkem);">Alkem Rewards+</div>
+        <div class="cc-use">Incentivises chemist retailers and field merchandisers to stock Alkem pharmaceuticals via invoice quantity slabs.</div>
+        <div class="cc-metrics">
+          <div class="cc-metric">
+            <span class="cc-metric-label">Members</span>
+            <span class="cc-metric-val">—</span>
+          </div>
+          <div class="cc-metric">
+            <span class="cc-metric-label">Volume</span>
+            <span class="cc-metric-val">—</span>
+          </div>
+          <div class="cc-metric">
+            <span class="cc-metric-label">Engagement</span>
+            <span class="cc-metric-val">—</span>
+          </div>
+          <div class="cc-metric">
+            <span class="cc-metric-label">Redemption</span>
+            <span class="cc-metric-val">—</span>
+          </div>
+        </div>
+        <div class="cc-pending">Data export pending</div>
+      </div>
+    </div>
+
+    <div class="comparison-table">
+      <table class="mini-table">
+        <thead>
+          <tr>
+            <th>Client</th>
+            <th>Members</th>
+            <th>Volume</th>
+            <th>Engagement</th>
+            <th>Points Issued</th>
+            <th>Redemption</th>
+            <th>Claim Approval</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>SBD India</strong></td>
+            <td class="mono">15,649</td>
+            <td class="mono">₹7.58 Cr</td>
+            <td class="mono">2.9%</td>
+            <td class="mono">33.1L</td>
+            <td class="mono">1.4%</td>
+            <td class="mono">66.7%</td>
+          </tr>
+          <tr>
+            <td><strong>Lupin Samruddhi</strong></td>
+            <td class="mono">69,560</td>
+            <td class="mono">₹0</td>
+            <td class="mono">0.21%</td>
+            <td class="mono">3 pts</td>
+            <td class="mono">0%</td>
+            <td class="mono">0.5%</td>
+          </tr>
+          <tr>
+            <td><strong>Worldia</strong></td>
+            <td class="mono">2,326</td>
+            <td class="mono">€84.3M</td>
+            <td class="mono">73.8%</td>
+            <td class="mono">163M pts</td>
+            <td class="mono">48.6%</td>
+            <td class="mono">N/A</td>
+          </tr>
+          <tr>
+            <td><strong>Alkem Rewards+</strong></td>
+            <td class="mono">—</td>
+            <td class="mono">—</td>
+            <td class="mono">—</td>
+            <td class="mono">—</td>
+            <td class="mono">—</td>
+            <td class="mono">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div>Page 1 of 13 · Loyalife Multi-Client Analysis · June 2026</div>
+  </div>
+</div>
+
+<!-- PAGE 2: SBD OVERVIEW -->
+<div class="page">
+  <div class="client-header" style="background: var(--sbd);">
+    <div>
+      <div class="ch-name">SBD India — PowerPerks</div>
+      <div class="ch-sub">Stanley Black & Decker India rewards hardware retailers and contractors for stocking and selling SBD tools. Members submit purchase invoices via the PowerPerks mobile app to earn points redeemable for rewards.</div>
+    </div>
+    <div class="ch-meta">Page 1 of 3 · Consumer · Retailer · Contractor</div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi-box">
+      <div class="kpi-value kv-sky">15,649</div>
+      <span class="kpi-label">Members</span>
+      <span class="kpi-def">registered members</span>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-red">2.9%</div>
+      <span class="kpi-label">Engagement</span>
+      <span class="kpi-def">members with ≥1 qualifying transaction</span>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-green">₹7.58 Cr</div>
+      <span class="kpi-label">Volume</span>
+      <span class="kpi-def">qualifying purchase value (Retailer)</span>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value">33.1L</div>
+      <span class="kpi-label">Points Issued</span>
+      <span class="kpi-def">total points credited to members</span>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-red">1.4%</div>
+      <span class="kpi-label">Redemption Rate</span>
+      <span class="kpi-def">of issued points redeemed for rewards</span>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-warn">66.7%</div>
+      <span class="kpi-label">Claim Approval</span>
+      <span class="kpi-def">of Retailer claims approved</span>
+    </div>
+  </div>
+
+  <div class="col64">
+    <div>
+      <div class="section-title">Program Activity</div>
+
+      <div class="funnel">
+        <div class="f-node">
+          <div class="f-circle size-xl" style="border-color: var(--sky); background: var(--sky);">
+            <span>15,069</span>
+          </div>
+          <div class="f-label">Enrolled</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct">87.9%</div>
+          <div class="f-line">→</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle size-lg" style="border-color: var(--sky); background: var(--sky-light);">
+            <span>13,252</span>
+          </div>
+          <div class="f-label">Welcome Bonus</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct">2.8%</div>
+          <div class="f-line">→</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle size-md" style="border-color: #F97316; background: #F97316;">
+            <span>425</span>
+          </div>
+          <div class="f-label">Transacted</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct">44.2%</div>
+          <div class="f-line">→</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle size-sm" style="border-color: var(--green); background: var(--green);">
+            <span>188</span>
+          </div>
+          <div class="f-label">Redeemed</div>
+        </div>
+      </div>
+
+      <div class="section-title">Monthly Active Retailers</div>
+      <div class="bar-row">
+        <div class="bar-label">Jan 2026</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 87.2%; background: var(--sky);"></div>
+        </div>
+        <div class="bar-num">177</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Feb 2026</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 100%; background: var(--sky);"></div>
+        </div>
+        <div class="bar-num">203</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Mar 2026</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 92.6%; background: var(--sky);"></div>
+        </div>
+        <div class="bar-num">188</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Apr 2026</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 59.1%; background: #F97316;"></div>
+        </div>
+        <div class="bar-num">120</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">May 2026</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 35.5%; background: #F97316;"></div>
+        </div>
+        <div class="bar-num">72</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Jun 2026</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 2.5%; background: var(--red);"></div>
+        </div>
+        <div class="bar-num">5</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Program Snapshot</div>
+      <div class="snap-card">
+        <div class="snap-row">
+          <div class="snap-key">Live Since</div>
+          <div class="snap-val">January 2026</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Market</div>
+          <div class="snap-val">India — Hardware & Tools retail</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Member Type</div>
+          <div class="snap-val">Retailers · Contractors · Consumers</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Earning Mechanism</div>
+          <div class="snap-val">Monthly volume slabs (Retailer) · Invoice submission (Contractor)</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Approval Flow</div>
+          <div class="snap-val">CS review queue for invoice claims</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Notifications</div>
+          <div class="snap-val">SMS + Push (MSG91 integrated)</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Program Status</div>
+          <div class="snap-val">
+            <span class="badge b-red">Consumer: Not Live</span>
+            <span class="badge b-amber">Retailer: Partial</span>
+            <span class="badge b-red">Contractor: Broken</span>
+          </div>
+        </div>
+      </div>
+
+      <table class="mini-table" style="margin-top: 8px;">
+        <thead>
+          <tr>
+            <th>Program</th>
+            <th>Members</th>
+            <th>Ever Transacted</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Consumer</td>
+            <td class="mono">176</td>
+            <td class="mono">0 (0%)</td>
+            <td>NOT LIVE</td>
+          </tr>
+          <tr>
+            <td>Retailer</td>
+            <td class="mono">15,069</td>
+            <td class="mono">425 (2.8%)</td>
+            <td>PARTIAL</td>
+          </tr>
+          <tr>
+            <td>Contractor</td>
+            <td class="mono">404</td>
+            <td class="mono">21 (5.2%)</td>
+            <td>BROKEN</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="callout c-amber" style="margin-top: 10px;">
+    14,600 of 15,069 Retailer members bulk-enrolled January 2026. 392 of 404 Contractor accounts are marked cancelled — believed to be a migration error.
+  </div>
+
+  <div class="page-footer">
+    <div>SBD India · Loyalife Multi-Client Analysis · June 2026</div>
+    <div>Page 2 of 13</div>
+  </div>
+</div>
+
+<!-- PAGE 3: SBD GAP ANALYSIS -->
+<div class="page">
+  <div class="client-header" style="background: var(--sbd);">
+    <div>
+      <div class="ch-name">SBD India · Gap Analysis</div>
+    </div>
+    <div class="ch-meta">Page 2 of 3</div>
+  </div>
+
+  <div class="section-title">Gap Analysis</div>
+
+  <div class="gap-grid">
+    <div class="gap-card critical">
+      <div class="gap-title">14,644 Retailers Have Never Submitted an Invoice<span class="gap-sev">Critical</span></div>
+      <div class="gap-stat">97.2% of enrolled Retailers have never transacted</div>
+      <div class="gap-body">Members were bulk-enrolled in January 2026 and received a 250-point welcome bonus. No follow-up activation message was sent directing them to submit an invoice. SMS and push notification infrastructure is fully integrated but has not been used for an activation campaign.</div>
+    </div>
+
+    <div class="gap-card critical">
+      <div class="gap-title">Earning Rule Has Effectively Never Fired<span class="gap-sev">Critical</span></div>
+      <div class="gap-stat">99.98% of all points came from the bulk welcome bonus — only 646 pts from actual purchases</div>
+      <div class="gap-body">33.1 lakh points were awarded as one-time welcome bonuses. Only 646 points have been earned through Power League purchase slabs. Only 1 member has ever qualified for a slab. The rule engine is configured but members are not submitting qualifying invoices.</div>
+    </div>
+
+    <div class="gap-card major">
+      <div class="gap-title">41.9% of Active Member-Months Fall Below the Minimum Purchase Floor<span class="gap-sev">Major</span></div>
+      <div class="gap-stat">357 of 853 member-months with transactions earned zero slab points</div>
+      <div class="gap-body">127 retailers transacted consistently but never hit the ₹30,000 minimum required for Slab 1. These members are engaged but invisible to the reward system. No entry-level earning exists below ₹30K. Distribution:</div>
+      <div style="margin-top: 4px;">
+        <div class="bar-row">
+          <div class="bar-label">&lt;₹30K</div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width: 100%; background: var(--red);"></div>
+          </div>
+          <div class="bar-num">357</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">₹30K–50K</div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width: 40.6%; background: #F97316;"></div>
+          </div>
+          <div class="bar-num">145</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">₹50K–1L</div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width: 42%; background: var(--sky);"></div>
+          </div>
+          <div class="bar-num">150</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">₹1L–2L</div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width: 34.5%; background: var(--indigo);"></div>
+          </div>
+          <div class="bar-num">123</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">₹2L+</div>
+          <div class="bar-track">
+            <div class="bar-fill" style="width: 21.8%; background: var(--navy);"></div>
+          </div>
+          <div class="bar-num">78</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gap-card critical">
+      <div class="gap-title">Contractor Program Has Four Broken Components<span class="gap-sev">Critical</span></div>
+      <div class="gap-stat">392 of 404 Contractor accounts are cancelled — active base is 11 people</div>
+      <table class="mini-table">
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Status</th>
+            <th>Impact</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Account status</td>
+            <td>392 of 404 cancelled</td>
+            <td>Members locked out</td>
+          </tr>
+          <tr>
+            <td>Identity verification</td>
+            <td>0 of 404 done</td>
+            <td>Blocks point unlock</td>
+          </tr>
+          <tr>
+            <td>Retailer attribution code</td>
+            <td>0% filled</td>
+            <td>Cross-program linkage broken</td>
+          </tr>
+          <tr>
+            <td>Eligible product awareness</td>
+            <td>6 of 25 SKUs purchased</td>
+            <td>19 qualifying tools never bought</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="gap-card critical">
+      <div class="gap-title">Consumer Program Not Connected to the Earning Engine<span class="gap-sev">Critical</span></div>
+      <div class="gap-stat">0 transactions · 0 points · 176 members · live since October 2025</div>
+      <div class="gap-body">Tool registration and video completion events — which were designed to trigger point credits — have never reached the earning engine. This is a technical pipeline issue, not a user adoption problem. No transactions have been recorded in over 8 months of operation.</div>
+    </div>
+
+    <div class="gap-card major">
+      <div class="gap-title">24.1% Claim Rejection + May Processing Failure<span class="gap-sev">Major</span></div>
+      <div class="gap-stat">101 claims failed in May due to an OCR processing error</div>
+      <div class="gap-body">1 in 4 Retailer claims is rejected. Main reasons: invoice SKU not on eligible list, non-SBD supplier, illegible photo. Monthly approval trend: Jan 54.9% → Feb 64.0% → Mar 64.5% → Apr 74.8% → May ⚠ 101 claims failed outright. The failed May claims need manual reprocessing.</div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div>SBD India · Loyalife Multi-Client Analysis · June 2026</div>
+    <div>Page 3 of 13</div>
+  </div>
+</div>
+
+<!-- PAGE 4: SBD ACTIONABLES -->
+<div class="page">
+  <div class="client-header" style="background: var(--sbd);">
+    <div>
+      <div class="ch-name">SBD India · Prioritized Actionables</div>
+    </div>
+    <div class="ch-meta">Page 3 of 3</div>
+  </div>
+
+  <div class="section-title">Prioritized Actionables</div>
+
+  <div class="action-item p1">
+    <div class="a-num">1</div>
+    <div>
+      <div class="a-title">Send activation campaign to 14,644 dormant Retailers</div>
+      <div class="a-desc">All 14,644 members with unused welcome bonuses have never opened the app or submitted an invoice. SMS and push notification infrastructure is already live — this is a configuration task. Draft message: "Your welcome bonus is waiting. Submit your first SBD invoice to start earning." Even a 5% response = ~730 new active members.</div>
+      <div class="a-tag">Retailer · No build required · Owner: SBD Account Manager + Comms team</div>
+    </div>
+  </div>
+
+  <div class="action-item p1">
+    <div class="a-num">2</div>
+    <div>
+      <div class="a-title">Launch Power League Season 2 before the active base disappears</div>
+      <div class="a-desc">Active retailers collapsed from 203 to 5 in 4 months. Launch a new earning season with: (a) an entry-level sub-₹30K slab (e.g. ₹10K–30K → 100 pts) to capture the 41.9% earning nothing; (b) re-announcement to the March–May active cohort; (c) a visible campaign end date in the app to create urgency.</div>
+      <div class="a-tag">Retailer · Rule config + communications · Owner: SBD Marketing + Loyalife admin</div>
+    </div>
+  </div>
+
+  <div class="action-item p2">
+    <div class="a-num">3</div>
+    <div>
+      <div class="a-title">Fix the Contractor program: reinstate accounts, activate verification, restore attribution</div>
+      <div class="a-desc">Four sequential fixes — (1) Investigate and reinstate 392 cancelled accounts (migration flag), (2) Activate identity verification so contractors can unlock points, (3) Make the retailer attribution code mandatory on invoice submission, (4) Share the full 25-product eligible list with all contractors — only 6 have ever been purchased. 95% of contractors are also Retailers — use that channel for comms.</div>
+      <div class="a-tag">Contractor · Platform fix + config · Owner: Loyalife engineering + SBD ops</div>
+    </div>
+  </div>
+
+  <div class="action-item p3">
+    <div class="a-num">4</div>
+    <div>
+      <div class="a-title">Reprocess 101 failed May claims and reduce ongoing rejection rate</div>
+      <div class="a-desc">101 May claims failed due to an OCR processing issue — manually reprocess before they expire. For ongoing rejections: add a pre-submission checklist in PowerPerks showing the eligible product list, a photo quality check, and a duplicate invoice warning.</div>
+      <div class="a-tag">Claims · Manual ops + app UX · Owner: Claims team + Loyalife product</div>
+    </div>
+  </div>
+
+  <div class="action-item p4">
+    <div class="a-num">5</div>
+    <div>
+      <div class="a-title">Audit Consumer transaction pipeline and review reward catalogue relevance</div>
+      <div class="a-desc">(A) Consumer has zero transactions since October 2025 — confirm whether the event pipeline is connected before investing further. (B) Retailer breakage is 86.4% — check if B2B retailers value the current catalogue or if fuel cards, trade credit, or hardware vouchers would drive higher redemption.</div>
+      <div class="a-tag">Consumer + Retailer · Technical audit + catalogue review · Owner: SBD Product + Loyalife CSM</div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div>SBD India · Loyalife Multi-Client Analysis · June 2026</div>
+    <div>Page 4 of 13</div>
+  </div>
+</div>
+
+<!-- PAGE 5: LUPIN OVERVIEW -->
+<div class="page">
+  <div class="client-header" style="background: var(--lupin);">
+    <div>
+      <div class="ch-name">Lupin Samruddhi</div>
+      <div class="ch-sub">Lupin Pharmaceuticals rewards drug retailers for stocking eligible medicines. Retailers scan purchase invoices via the app; points are credited after OCR verification and claim approval by the CS team.</div>
+    </div>
+    <div class="ch-meta">Page 1 of 3 · Pharma Channel Retail Loyalty</div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi-box">
+      <div class="kpi-value kv-sky">69,560</div>
+      <span class="kpi-label">Members</span>
+      <span class="kpi-def">registered members</span>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-red">0.21%</div>
+      <span class="kpi-label">Engagement</span>
+      <span class="kpi-def">members with ≥1 qualifying claim filed</span>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-red">₹0</div>
+      <span class="kpi-label">Volume</span>
+      <span class="kpi-def">qualifying purchase value transacted</span>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-red">3</div>
+      <span class="kpi-label">Points Issued</span>
+      <span class="kpi-def">total points credited to members</span>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-red">0%</div>
+      <span class="kpi-label">Redemption Rate</span>
+      <span class="kpi-def">of issued points redeemed for rewards</span>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-red">0.5%</div>
+      <span class="kpi-label">Claim Approval</span>
+      <span class="kpi-def">of filed claims approved</span>
+    </div>
+  </div>
+
+  <div class="col64">
+    <div>
+      <div class="section-title">Program Activity</div>
+
+      <div class="funnel">
+        <div class="f-node">
+          <div class="f-circle size-xl" style="border-color: var(--sky); background: var(--sky);">
+            <span>69,560</span>
+          </div>
+          <div class="f-label">Enrolled</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct">0.21%</div>
+          <div class="f-line">→</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle size-sm" style="border-color: #F97316; background: #F97316;">
+            <span>147</span>
+          </div>
+          <div class="f-label">Filed ≥1 Claim</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct">396%</div>
+          <div class="f-line">→</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle size-md" style="border-color: #F97316; background: #F97316;">
+            <span>582</span>
+          </div>
+          <div class="f-label">Total Claims</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct">0.5%</div>
+          <div class="f-line">→</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle size-sm" style="border-color: var(--green); background: var(--red);">
+            <span>3</span>
+          </div>
+          <div class="f-label">Approved</div>
+        </div>
+      </div>
+
+      <div class="callout c-amber" style="margin: 10px 0; font-size: 7pt;">
+        906,102 points frozen in PENDING claims. 601,593 points tied to REJECTED claims. Only 3 points have been credited.
+      </div>
+
+      <div class="section-title">Claims Pipeline</div>
+      <div class="bar-row">
+        <div class="bar-label">REJECTED</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 100%; background: var(--red);"></div>
+        </div>
+        <div class="bar-num">291 (50%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">PENDING</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 74.6%; background: #F97316;"></div>
+        </div>
+        <div class="bar-num">217 (37.3%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">DRAFT</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 22.7%; background: #D1D5DB;"></div>
+        </div>
+        <div class="bar-num">66 (11.3%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">FAILED</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 1.7%; background: #FB923C;"></div>
+        </div>
+        <div class="bar-num">5 (0.9%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">APPROVED</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 1%; background: var(--green);"></div>
+        </div>
+        <div class="bar-num">3 (0.5%)</div>
+      </div>
+
+      <div class="section-title">OCR Confidence Distribution</div>
+      <div class="bar-row">
+        <div class="bar-label">Below 60%</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 100%; background: var(--red);"></div>
+        </div>
+        <div class="bar-num">521 (89.5%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">80–90%</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 4.8%; background: #F97316;"></div>
+        </div>
+        <div class="bar-num">25 (4.3%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">90–100%</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 3.8%; background: var(--green);"></div>
+        </div>
+        <div class="bar-num">20 (3.4%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">60–80%</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 1.9%; background: var(--sky);"></div>
+        </div>
+        <div class="bar-num">10 (1.7%)</div>
+      </div>
+
+      <div class="callout c-red" style="margin-top: 8px;">
+        89.5% of invoices fall below the auto-approve threshold and land in the CS manual review queue.
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Program Snapshot</div>
+      <div class="snap-card">
+        <div class="snap-row">
+          <div class="snap-key">Live Since</div>
+          <div class="snap-val">May 2026</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Market</div>
+          <div class="snap-val">India — Pharmaceutical retail</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Member Type</div>
+          <div class="snap-val">Drug store retailers (all drug license holders)</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Earning Mechanism</div>
+          <div class="snap-val">Invoice scan → OCR verify → CS review → points credited</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Approval Flow</div>
+          <div class="snap-val">CS manual review queue (below confidence threshold)</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Notifications</div>
+          <div class="snap-val">None configured</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Program Status</div>
+          <div class="snap-val">
+            <span class="badge b-red">Pre-Launch — Zero Live Activity</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top: 10px;">Field Coverage</div>
+      <div style="font-size: 7.5pt; line-height: 1.6; color: var(--slate);">
+        <div>362 Business Executives (BEs) — field sales reps assigned to retailers</div>
+        <div>69 Area Managers (AMs) — territory heads overseeing BEs</div>
+        <div>98.5% of members have both a BE and AM assigned</div>
+        <div>7 members with KYC verified</div>
+      </div>
+
+      <div class="callout c-red" style="margin-top: 8px;">
+        All 69,560 members were bulk-enrolled in May 2026. No activation communication has been sent since enrollment.
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div>Lupin Samruddhi · Loyalife Multi-Client Analysis · June 2026</div>
+    <div>Page 5 of 13</div>
+  </div>
+</div>
+
+<!-- PAGE 6: LUPIN GAP ANALYSIS -->
+<div class="page">
+  <div class="client-header" style="background: var(--lupin);">
+    <div>
+      <div class="ch-name">Lupin Samruddhi · Gap Analysis</div>
+    </div>
+    <div class="ch-meta">Page 2 of 3</div>
+  </div>
+
+  <div class="section-title">Gap Analysis</div>
+
+  <div class="gap-grid">
+    <div class="gap-card critical">
+      <div class="gap-title">Zero Genuine Activity Despite 69,560 Enrolled<span class="gap-sev">Critical</span></div>
+      <div class="gap-stat">99.79% of members have never filed a claim or submitted a transaction</div>
+      <div class="gap-body">All members were bulk-enrolled in May 2026. No activation message — SMS, push, or WhatsApp — was sent post-enrollment. The only transactions in the system are 3 internal test entries. Members do not know they are enrolled or what action to take.</div>
+    </div>
+
+    <div class="gap-card critical">
+      <div class="gap-title">Points Expiry Imminent — Claims Backlog at Risk<span class="gap-sev">Critical</span></div>
+      <div class="gap-stat">All issued and frozen points expire June 30 2026 — weeks away</div>
+      <div class="gap-body">906,102 points in PENDING claims and 601,593 in REJECTED claims face an imminent expiry. If the claims backlog is not cleared before the expiry date, points will be forfeited — damaging retailer trust at the very start of the program. Expiry must be extended immediately.</div>
+    </div>
+
+    <div class="gap-card critical">
+      <div class="gap-title">OCR Quality Too Poor for Auto-Approval at Scale<span class="gap-sev">Critical</span></div>
+      <div class="gap-stat">89.5% of invoice scans fall below the auto-approval confidence threshold</div>
+      <div class="gap-body">Claims below the threshold land in the CS manual review queue. With 521 of 582 claims requiring manual review, the team cannot operate at scale. Root causes: low-resolution photos, handwritten invoices, poor lighting conditions. A pre-submission quality gate in the app would eliminate most low-quality submissions before they enter the queue.</div>
+    </div>
+
+    <div class="gap-card major">
+      <div class="gap-title">KYC Completion Near-Zero Across 69,560 Members<span class="gap-sev">Major</span></div>
+      <div class="gap-stat">Only 7 of 69,560 members have completed identity verification</div>
+      <div class="gap-body">Identity verification is a prerequisite for point redemption. While drug license verification is complete for all members, the deeper Aadhaar-based KYC has essentially not been activated. This blocks any redemption once the claims backlog is resolved and genuine points start flowing.</div>
+    </div>
+
+    <div class="gap-card major">
+      <div class="gap-title">All Claims Show the Same Product Code Regardless of Invoice<span class="gap-sev">Major</span></div>
+      <div class="gap-stat">Every one of the 582 claims uses the same product identifier</div>
+      <div class="gap-body">The earning rule covers 278 eligible products in the SKU master. However, all claims show the same product code — suggesting the app is not capturing the actual product from the OCR output, or the matching logic is using a placeholder. This needs investigation to confirm whether earning is being applied correctly.</div>
+    </div>
+
+    <div class="gap-card moderate">
+      <div class="gap-title">No Tier or Volume Differentiation<span class="gap-sev">Moderate</span></div>
+      <div class="gap-stat">All 69,560 members earn at the same flat rate with no progression incentive</div>
+      <div class="gap-body">High-volume retailers and occasional purchasers are treated identically. No tiers, multipliers, or milestone rewards exist. Once the baseline program is operational, tiered earning for top-purchasing retailers would significantly increase per-member value and loyalty.</div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div>Lupin Samruddhi · Loyalife Multi-Client Analysis · June 2026</div>
+    <div>Page 6 of 13</div>
+  </div>
+</div>
+
+<!-- PAGE 7: LUPIN ACTIONABLES -->
+<div class="page">
+  <div class="client-header" style="background: var(--lupin);">
+    <div>
+      <div class="ch-name">Lupin Samruddhi · Prioritized Actionables</div>
+    </div>
+    <div class="ch-meta">Page 3 of 3</div>
+  </div>
+
+  <div class="section-title">Prioritized Actionables</div>
+
+  <div class="action-item p1">
+    <div class="a-num">1</div>
+    <div>
+      <div class="a-title">Extend points expiry — protect retailer trust at program launch</div>
+      <div class="a-desc">All current and pending points expire at the end of June 2026. If the claims backlog is not cleared in time, members will see their points vanish at their very first interaction with the program. Extend the expiry window to at least December 2026. This is a configuration change with no build cost but high trust impact.</div>
+      <div class="a-tag">Platform Config · Owner: Loyalife program admin</div>
+    </div>
+  </div>
+
+  <div class="action-item p1">
+    <div class="a-num">2</div>
+    <div>
+      <div class="a-title">Add a photo quality gate before claim submission</div>
+      <div class="a-desc">89.5% of invoice photos are below confidence threshold. Add real-time feedback in the app before submission: blur detection, lighting check, and required field visibility confirmation. Show a "Your image may be rejected — try retaking" warning. This stops poor-quality photos from entering the CS queue before they are submitted.</div>
+      <div class="a-tag">App UX · Configuration + minor build · Owner: Loyalife product + Lupin ops</div>
+    </div>
+  </div>
+
+  <div class="action-item p2">
+    <div class="a-num">3</div>
+    <div>
+      <div class="a-title">Send activation campaign — 69,553 members have never engaged</div>
+      <div class="a-desc">A simple SMS to enrolled retailers: "You're registered on Lupin Samruddhi rewards. Scan your next Lupin invoice to start earning." Include the eligible medicines list. The BE (Business Executive) and AM (Area Manager) field hierarchy is already mapped — BEs can personally follow up with their assigned retailers. Even 1% activation = ~695 new participating members.</div>
+      <div class="a-tag">Communications · No build required · Owner: Lupin field team + Loyalife comms config</div>
+    </div>
+  </div>
+
+  <div class="action-item p2">
+    <div class="a-num">4</div>
+    <div>
+      <div class="a-title">Clear the 217 PENDING claims backlog — assign a dedicated CS sprint</div>
+      <div class="a-desc">217 claims are stuck in the CS review queue with no communication sent to the members who filed them. Assign a focused review to action all 217 — prioritising claims with confidence scores above 50%. Clear the backlog before the expiry extension goes live so members can see the result of their submissions.</div>
+      <div class="a-tag">CS Operations · Manual review · Owner: Lupin CS team</div>
+    </div>
+  </div>
+
+  <div class="action-item p3">
+    <div class="a-num">5</div>
+    <div>
+      <div class="a-title">Investigate the single-product-code issue and verify claim matching</div>
+      <div class="a-desc">All 582 claims show the same product code regardless of what was scanned. Determine whether this is a UI capture bug (OCR output not being read) or a rule matching issue. Confirm that claim evaluation is running against the full 278-product eligible list and not a placeholder. Retroactive correction may be needed for the 3 approved claims.</div>
+      <div class="a-tag">Platform Investigation · Owner: Loyalife engineering + Lupin program manager</div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div>Lupin Samruddhi · Loyalife Multi-Client Analysis · June 2026</div>
+    <div>Page 7 of 13</div>
+  </div>
+</div>
+
+
+<!-- PAGE 8 -->
+<div class="page">
+  <div class="client-header" style="background-color: var(--worldia);">
+    <div class="ch-name">Worldia</div>
+    <div class="ch-sub">Worldia rewards French travel agency consultants for bookings made through its platform. Every euro of booking value earns one point, redeemable for travel experiences, gift cards, and merchandise.</div>
+    <div class="ch-meta">Page 1 of 3 · Travel Agency Loyalty · France</div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi-box">
+      <div class="kpi-value kv-sky">2,326</div>
+      <div class="kpi-label">Members</div>
+      <div class="kpi-def">registered consultants</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-green">73.8%</div>
+      <div class="kpi-label">Engagement</div>
+      <div class="kpi-def">members with ≥1 qualifying booking transaction</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-green">€84.3M</div>
+      <div class="kpi-label">Volume</div>
+      <div class="kpi-def">qualifying booking value transacted</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-green">163M</div>
+      <div class="kpi-label">Points Issued</div>
+      <div class="kpi-def">total points credited to members</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-warn">48.6%</div>
+      <div class="kpi-label">Redemption Rate</div>
+      <div class="kpi-def">of issued points redeemed for rewards</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-red">83.9M pts</div>
+      <div class="kpi-label">Outstanding Balance</div>
+      <div class="kpi-def">unredeemed points remaining in accounts</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="col64">
+      <div class="section-title">Program Activity</div>
+
+      <div class="funnel">
+        <div class="f-node">
+          <div class="f-circle" style="background-color: var(--sky);">2,326</div>
+          <div class="f-label">Enrolled</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct">95.7%</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle" style="background-color: var(--sky);">2,227</div>
+          <div class="f-label">Activated</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct">77.1%</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle" style="background-color: var(--green);">1,717</div>
+          <div class="f-label">Transacted</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct">60.3%</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle" style="background-color: var(--gold);">1,036</div>
+          <div class="f-label">Ever Redeemed</div>
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top: 2rem;">Annual Booking Volume (€M)</div>
+      <div class="bar-row">
+        <div class="bar-label">2022</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 5.0%; background-color: var(--sky);"></div>
+        </div>
+        <div class="bar-num">€2.3M</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">2023</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 32.3%; background-color: var(--sky);"></div>
+        </div>
+        <div class="bar-num">€14.9M</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">2024</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 100%; background-color: var(--green);"></div>
+        </div>
+        <div class="bar-num">€46.1M</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">2025 (Jan–Jun)</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 45.6%; background-color: var(--gold);"></div>
+        </div>
+        <div class="bar-num">€21.0M</div>
+      </div>
+
+      <div class="section-title" style="margin-top: 2rem;">Top Booking Markets (2024–25)</div>
+      <div class="bar-row">
+        <div class="bar-label">Japan</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 100%; background-color: var(--sky);"></div>
+        </div>
+        <div class="bar-num">42,400</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Thailand</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 34.4%; background-color: var(--sky);"></div>
+        </div>
+        <div class="bar-num">14,600</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Maldives</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 22.4%; background-color: var(--sky);"></div>
+        </div>
+        <div class="bar-num">9,500</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Mauritius</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 14.6%; background-color: var(--gold);"></div>
+        </div>
+        <div class="bar-num">6,200</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Bali</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: 12.7%; background-color: var(--gold);"></div>
+        </div>
+        <div class="bar-num">5,400</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">Program Snapshot</div>
+      <div class="snap-card">
+        <div class="snap-row">
+          <div class="snap-key">Live Since</div>
+          <div class="snap-val">February 2025</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Market</div>
+          <div class="snap-val">France — Travel agency consultants</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Member Type</div>
+          <div class="snap-val">Agency consultants (individual advisors)</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Earning Mechanism</div>
+          <div class="snap-val">Linear: 1 EUR booked = 1 point (no minimum, no slab)</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Approval Flow</div>
+          <div class="snap-val">Direct — no approval required</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Notifications</div>
+          <div class="snap-val">None configured</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Program Status</div>
+          <div class="snap-val"><span class="badge b-green">Active</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout c-amber">
+    The top 10% of consultants generate 62% of all booking value. 609 members (26.2%) have never made a booking despite being activated.
+  </div>
+
+  <div class="page-footer">
+    <div>Worldia · Loyalife Multi-Client Analysis · June 2026</div>
+    <div>Page 8 of 13</div>
+  </div>
+</div>
+
+<!-- PAGE 9 -->
+<div class="page">
+  <div class="client-header" style="background-color: var(--worldia);">
+    <div class="ch-name">Worldia</div>
+    <div class="ch-sub">Gap Analysis</div>
+    <div class="ch-meta">Page 2 of 3</div>
+  </div>
+
+  <div class="section-title">Gap Analysis</div>
+
+  <div class="gap-grid">
+    <div class="gap-card critical">
+      <div class="gap-title">48.6% Redemption Rate — Half of Earned Points Unredeemed</div>
+      <div class="gap-sev">Critical</div>
+      <div class="gap-stat">83.9M points sitting in member accounts; redemption declining</div>
+      <div class="gap-body">The program has issued 163M points but members have redeemed only 79.1M. A significant portion of unredeemed points belong to members who have transacted but never explored the redemption catalogue. No reminder communications are configured. Without prompting, breakage rises: unredeemed points represent real programme liability and signal weak perceived catalogue value.</div>
+    </div>
+
+    <div class="gap-card major">
+      <div class="gap-title">26.2% of Activated Members Have Never Made a Booking</div>
+      <div class="gap-sev">Major</div>
+      <div class="gap-stat">609 activated members with zero booking transactions</div>
+      <div class="gap-body">These consultants completed account activation but have not converted to program participants. No automated follow-up sequence exists after activation. A booking incentive for first-timers — even a small bonus — combined with a single direct communication could convert a meaningful portion of this cohort.</div>
+    </div>
+
+    <div class="gap-card major">
+      <div class="gap-title">Point Expiry Policy Creates Aggressive Forfeitures</div>
+      <div class="gap-sev">Major</div>
+      <div class="gap-stat">Points expire on a rolling 12-month basis from issue date</div>
+      <div class="gap-body">The tier alert system flags members approaching expiry, but no automated notification is sent to warn them. Members who take a seasonal break from booking (e.g., off-peak periods) silently lose accumulated points. An email trigger at the 60-day and 30-day mark before expiry would reduce forfeitures and improve member satisfaction.</div>
+    </div>
+
+    <div class="gap-card major">
+      <div class="gap-title">Top-Heavy Booking Distribution — Bottom 40% Underserved</div>
+      <div class="gap-sev">Major</div>
+      <div class="gap-stat">Top 10% of consultants = 62% of booking value</div>
+      <div class="gap-body">The flat 1€ = 1 point structure provides no additional incentive for mid-tier or occasional consultants to increase their booking activity. No milestone bonuses, seasonal multipliers, or achievement badges exist. A tiered structure (e.g., Platinum consultants earn 1.5× during peak months) would increase activity from the middle of the distribution without impacting top performers.</div>
+    </div>
+
+    <div class="gap-card moderate">
+      <div class="gap-title">No Notifications Configured Across the Entire Program</div>
+      <div class="gap-sev">Moderate</div>
+      <div class="gap-stat">0 automated emails or push notifications have ever been sent</div>
+      <div class="gap-body">The Loyalife notification framework supports email, push, and SMS triggers based on events (booking made, points expiring, milestone reached). Worldia has not activated any of them. Members receive no acknowledgment when they earn points, no alert when their balance is at risk, and no nudge when they are inactive. Notifications are the single highest-leverage action available at zero build cost.</div>
+    </div>
+
+    <div class="gap-card moderate">
+      <div class="gap-title">Japan Market Overexposure — Single Market = 32% of Volume</div>
+      <div class="gap-sev">Moderate</div>
+      <div class="gap-stat">Japan represents an estimated 32% of total booking value</div>
+      <div class="gap-body">Heavy concentration in a single market creates fragility — a geopolitical event, pandemic-related restriction, or shift in consumer preference could significantly affect program revenue. No secondary market has more than 12% share. Diversification incentives (bonus points for bookings to underperforming markets) would reduce concentration risk and grow overall volume.</div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div>Worldia · Loyalife Multi-Client Analysis · June 2026</div>
+    <div>Page 9 of 13</div>
+  </div>
+</div>
+
+<!-- PAGE 10 -->
+<div class="page">
+  <div class="client-header" style="background-color: var(--worldia);">
+    <div class="ch-name">Worldia</div>
+    <div class="ch-sub">Prioritized Actionables</div>
+    <div class="ch-meta">Page 3 of 3</div>
+  </div>
+
+  <div class="section-title">Prioritized Actionables</div>
+
+  <div class="action-item p1">
+    <div class="a-num">1</div>
+    <div>
+      <div class="a-title">Configure point expiry notifications — 60-day and 30-day triggers</div>
+      <div class="a-desc">Points expire on a rolling 12-month basis. No warning is currently sent to members before expiry. Configure two automated email triggers: one at 60 days before expiry and one at 30 days. The message should show the member's expiring balance and link directly to the redemption catalogue. This is a configuration task requiring no development work.</div>
+      <div class="a-tag"><span class="badge b-amber">Notifications</span> <span class="badge b-amber">Platform config</span> <span class="badge b-gray">Owner: Worldia program admin + Loyalife CSM</span></div>
+    </div>
+  </div>
+
+  <div class="action-item p1">
+    <div class="a-num">2</div>
+    <div>
+      <div class="a-title">Launch re-engagement campaign for 609 zero-booking activated members</div>
+      <div class="a-desc">609 consultants have activated their account but made no bookings. Send a single personalised email: "You have [X] points waiting — make your first booking to start earning more." Include top destinations by booking value. Even a 15% conversion = ~91 new active members with measurable booking impact.</div>
+      <div class="a-tag"><span class="badge b-amber">Communications</span> <span class="badge b-amber">No build required</span> <span class="badge b-gray">Owner: Worldia marketing + Loyalife comms</span></div>
+    </div>
+  </div>
+
+  <div class="action-item p2">
+    <div class="a-num">3</div>
+    <div>
+      <div class="a-title">Send redemption reminder to the top 500 members by unredeemed balance</div>
+      <div class="a-desc">83.9M points sit unredeemed. Identify the 500 members with the highest unredeemed balance and send a targeted email with their current points value, expiry date, and 3 featured catalogue items. High-balance members with a near-expiry window will convert at the highest rate. Tie it to a seasonal theme for better open rates.</div>
+      <div class="a-tag"><span class="badge b-amber">Redemption</span> <span class="badge b-amber">No build required</span> <span class="badge b-gray">Owner: Worldia CRM team</span></div>
+    </div>
+  </div>
+
+  <div class="action-item p3">
+    <div class="a-num">4</div>
+    <div>
+      <div class="a-title">Introduce a mid-tier multiplier for consultants booking 2× or more destinations</div>
+      <div class="a-desc">The current flat earning structure treats €10,000 in Japan bookings identically to €10,000 across five destinations. Introduce a 1.25× multiplier for consultants who book more than 2 distinct markets in a rolling 30 days. This nudges the mid-tier (currently earning but not growing) without cannibalising top-performer economics.</div>
+      <div class="a-tag"><span class="badge b-amber">Rule Config</span> <span class="badge b-amber">Earning design</span> <span class="badge b-gray">Owner: Worldia commercial team + Loyalife admin</span></div>
+    </div>
+  </div>
+
+  <div class="action-item p4">
+    <div class="a-num">5</div>
+    <div>
+      <div class="a-title">Review catalogue relevance — check whether top redemptions match member demographics</div>
+      <div class="a-desc">48.6% redemption among 73.8% active members suggests catalogue relevance issues for a portion of the base. Pull the top 20 redeemed items and compare against the booking profile of non-redeeming members. Travel agency consultants may prefer travel-related rewards (hotel nights, lounge access) over generic merchandise. Even a small catalogue refresh targeted at the non-redeeming cohort would improve rates.</div>
+      <div class="a-tag"><span class="badge b-amber">Catalogue Review</span> <span class="badge b-gray">Owner: Worldia product + Loyalife catalogue team</span></div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div>Worldia · Loyalife Multi-Client Analysis · June 2026</div>
+    <div>Page 10 of 13</div>
+  </div>
+</div>
+
+<!-- PAGE 11 -->
+<div class="page">
+  <div class="client-header" style="background-color: var(--alkem);">
+    <div class="ch-name">Alkem Rewards+</div>
+    <div class="ch-sub">Alkem Laboratories rewards chemist retailers and field merchandisers for stocking eligible pharmaceutical products. Points are earned on invoice quantity slabs and visibility activities, credited after a two-level approval flow.</div>
+    <div class="ch-meta">Page 1 of 3 · Pharma Channel Loyalty · India</div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi-box">
+      <div class="kpi-value kv-sky">—</div>
+      <div class="kpi-label">Members</div>
+      <div class="kpi-def">registered members · export pending</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-sky">—</div>
+      <div class="kpi-label">Engagement</div>
+      <div class="kpi-def">members with ≥1 qualifying transaction · export pending</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-sky">—</div>
+      <div class="kpi-label">Volume</div>
+      <div class="kpi-def">qualifying invoice value transacted · export pending</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-sky">—</div>
+      <div class="kpi-label">Points Issued</div>
+      <div class="kpi-def">total points credited to members · export pending</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-sky">—</div>
+      <div class="kpi-label">Redemption Rate</div>
+      <div class="kpi-def">of issued points redeemed for rewards · export pending</div>
+    </div>
+    <div class="kpi-box">
+      <div class="kpi-value kv-sky">—</div>
+      <div class="kpi-label">Claim Approval</div>
+      <div class="kpi-def">of filed claims approved · export pending</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="col64">
+      <div class="section-title">Program Activity</div>
+
+      <div class="funnel">
+        <div class="f-node">
+          <div class="f-circle" style="background-color: #E2E8F0; border: 2px dotted #94A3B8;">—</div>
+          <div class="f-label" style="color: #64748B;">Enrolled</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct" style="color: #64748B;">—%</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle" style="background-color: #E2E8F0; border: 2px dotted #94A3B8;">—</div>
+          <div class="f-label" style="color: #64748B;">Activated</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct" style="color: #64748B;">—%</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle" style="background-color: #E2E8F0; border: 2px dotted #94A3B8;">—</div>
+          <div class="f-label" style="color: #64748B;">Submitted Claim</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct" style="color: #64748B;">—%</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle" style="background-color: #E2E8F0; border: 2px dotted #94A3B8;">—</div>
+          <div class="f-label" style="color: #64748B;">Points Issued</div>
+        </div>
+        <div class="f-arrow">
+          <div class="f-pct" style="color: #64748B;">—%</div>
+        </div>
+        <div class="f-node">
+          <div class="f-circle" style="background-color: #E2E8F0; border: 2px dotted #94A3B8;">—</div>
+          <div class="f-label" style="color: #64748B;">Redeemed</div>
+        </div>
+      </div>
+
+      <div class="callout c-indigo">
+        Program went live in April 2026. Transaction data has not yet been exported from the platform. Metrics will be available once the first data extract is completed.
+      </div>
+
+      <div class="section-title" style="margin-top: 2rem;">Earning Mechanism</div>
+      <table class="mini-table">
+        <thead>
+          <tr>
+            <th>Activity</th>
+            <th>Slab / Trigger</th>
+            <th>Points</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Invoice purchase</td>
+            <td>5 units of eligible SKU</td>
+            <td>50 pts</td>
+          </tr>
+          <tr>
+            <td>Invoice purchase</td>
+            <td>8 units of eligible SKU</td>
+            <td>100 pts</td>
+          </tr>
+          <tr>
+            <td>Invoice purchase</td>
+            <td>10+ units of eligible SKU</td>
+            <td>150 pts</td>
+          </tr>
+          <tr>
+            <td>Visibility activity</td>
+            <td>Shelf display placement</td>
+            <td>25 pts</td>
+          </tr>
+          <tr>
+            <td>Visibility activity</td>
+            <td>Promotional material display</td>
+            <td>25 pts</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <div class="section-title">Program Snapshot</div>
+      <div class="snap-card">
+        <div class="snap-row">
+          <div class="snap-key">Live Since</div>
+          <div class="snap-val">April 2026</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Market</div>
+          <div class="snap-val">India — Pharmaceutical retail</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Member Type</div>
+          <div class="snap-val">Chemist retailers + Field merchandisers</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Earning Mechanism</div>
+          <div class="snap-val">Invoice quantity slabs (5 / 8 / 10 units) + Visibility activities</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Approval Flow</div>
+          <div class="snap-val">2-level: Area Sales Manager → Head Office</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Notifications</div>
+          <div class="snap-val">None configured</div>
+        </div>
+        <div class="snap-row">
+          <div class="snap-key">Program Status</div>
+          <div class="snap-val"><span class="badge b-green">Active — Early Stage</span></div>
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top: 2rem;">Program Structure</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div style="border: 1px solid var(--border); padding: 1rem; border-radius: 0.5rem;">
+          <div style="font-size: 0.875rem; color: var(--muted); font-weight: 500;">Earning Rule Types</div>
+          <div style="font-size: 1.5rem; font-weight: 600; color: var(--slate); margin-top: 0.5rem;">2</div>
+          <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">Purchase slabs + Visibility</div>
+        </div>
+        <div style="border: 1px solid var(--border); padding: 1rem; border-radius: 0.5rem;">
+          <div style="font-size: 0.875rem; color: var(--muted); font-weight: 500;">Approval Levels</div>
+          <div style="font-size: 1.5rem; font-weight: 600; color: var(--slate); margin-top: 0.5rem;">2</div>
+          <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">ASM → HO</div>
+        </div>
+        <div style="border: 1px solid var(--border); padding: 1rem; border-radius: 0.5rem;">
+          <div style="font-size: 0.875rem; color: var(--muted); font-weight: 500;">Coverage</div>
+          <div style="font-size: 1.5rem; font-weight: 600; color: var(--slate); margin-top: 0.5rem;">Pan-India</div>
+        </div>
+        <div style="border: 1px solid var(--border); padding: 1rem; border-radius: 0.5rem;">
+          <div style="font-size: 0.875rem; color: var(--muted); font-weight: 500;">SKU Eligible</div>
+          <div style="font-size: 1.5rem; font-weight: 600; color: var(--slate); margin-top: 0.5rem;">Multiple</div>
+          <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem;">Catalogue on platform</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout c-blue">
+    Alkem Rewards+ launched in April 2026. Metrics will be updated once the program data export is completed.
+  </div>
+
+  <div class="page-footer">
+    <div>Alkem Rewards+ · Loyalife Multi-Client Analysis · June 2026</div>
+    <div>Page 11 of 13</div>
+  </div>
+</div>
+
+<!-- PAGE 12 -->
+<div class="page">
+  <div class="client-header" style="background-color: var(--alkem);">
+    <div class="ch-name">Alkem Rewards+</div>
+    <div class="ch-sub">Gap Analysis</div>
+    <div class="ch-meta">Page 2 of 3</div>
+  </div>
+
+  <div class="section-title">Gap Analysis</div>
+
+  <div class="gap-grid">
+    <div class="gap-card major">
+      <div class="gap-title">No Notification System Configured</div>
+      <div class="gap-sev">Major</div>
+      <div class="gap-stat">0 automated communications have been set up since launch</div>
+      <div class="gap-body">No SMS, email, or push notifications are configured on the Alkem Rewards+ program. Members receive no confirmation after a claim is submitted, no update when a claim is approved or rejected, and no alert when points are credited. A two-level approval flow without any status communication leaves members uncertain about whether their actions have been registered.</div>
+    </div>
+
+    <div class="gap-card major">
+      <div class="gap-title">Two-Level Approval Introduces Processing Latency</div>
+      <div class="gap-sev">Major</div>
+      <div class="gap-stat">Claims require sequential sign-off from Area Sales Manager and Head Office</div>
+      <div class="gap-body">Each claim passes through two manual approval stages. Without a time-bound SLA for each approver, claims can stall at either level. Members submitting claims in bulk (end-of-month invoice uploads) may experience multi-week delays before points appear in their account — reducing the motivational link between the sales action and the reward.</div>
+    </div>
+
+    <div class="gap-card major">
+      <div class="gap-title">No Data Available for Performance Monitoring</div>
+      <div class="gap-sev">Major</div>
+      <div class="gap-stat">Program data has not been exported since go-live in April 2026</div>
+      <div class="gap-body">No transaction data, engagement figures, or claim volumes are currently available for analysis. Without a periodic data export cadence (weekly or monthly), program performance is invisible to the account team. Configuration decisions cannot be validated, and no early signals of adoption or friction are accessible.</div>
+    </div>
+
+    <div class="gap-card moderate">
+      <div class="gap-title">Flat Structure Treats All Chemists Identically</div>
+      <div class="gap-sev">Moderate</div>
+      <div class="gap-stat">No tiers, multipliers, or milestone bonuses differentiate high-volume retailers</div>
+      <div class="gap-body">High-volume pharmacies and occasional purchasers earn at the same rate. No progression mechanic — tiered multipliers, seasonal bonuses, or milestone rewards — exists to incentivise chemists to increase stocking over time. Once baseline metrics are available, a tier structure designed around invoice frequency and volume would strengthen long-term retention.</div>
+    </div>
+
+    <div class="gap-card moderate">
+      <div class="gap-title">Field Merchandiser Earning Relies on Manual Verification</div>
+      <div class="gap-sev">Moderate</div>
+      <div class="gap-stat">Visibility activities are manually reviewed — no photo evidence capture configured</div>
+      <div class="gap-body">Shelf display and promotional material placement are valid earning activities, but verification depends on field managers reviewing and approving without a structured evidence trail. Requiring photo capture at the point of claim submission (shelf photo, branded display photo) would reduce fraudulent claims and give the compliance team a verifiable audit trail.</div>
+    </div>
+
+    <div class="gap-card moderate">
+      <div class="gap-title">No KYC or Identity Verification Process Described</div>
+      <div class="gap-sev">Moderate</div>
+      <div class="gap-stat">Redemption prerequisites for chemist KYC compliance are unclear</div>
+      <div class="gap-body">Pharmaceutical retail loyalty programs in India often require distributor license or KYC verification before point redemption. It is not confirmed whether identity verification is configured as a pre-redemption gate or whether the current member base has completed any form of verification. This should be confirmed and communicated clearly to members before the first redemption cycle.</div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div>Alkem Rewards+ · Loyalife Multi-Client Analysis · June 2026</div>
+    <div>Page 12 of 13</div>
+  </div>
+</div>
+
+<!-- PAGE 13 -->
+<div class="page">
+  <div class="client-header" style="background-color: var(--alkem);">
+    <div class="ch-name">Alkem Rewards+</div>
+    <div class="ch-sub">Prioritized Actionables</div>
+    <div class="ch-meta">Page 3 of 3</div>
+  </div>
+
+  <div class="section-title">Prioritized Actionables</div>
+
+  <div class="action-item p1">
+    <div class="a-num">1</div>
+    <div>
+      <div class="a-title">Configure claim status notifications for all approval stages</div>
+      <div class="a-desc">Members submitting claims receive no feedback at any stage of the approval process. Configure notifications for: (1) claim received confirmation, (2) ASM approval / rejection with reason, (3) Head Office sign-off and points credited. SMS is the recommended channel given the chemist retail audience. This is a platform configuration task that significantly improves member trust and program participation.</div>
+      <div class="a-tag"><span class="badge b-amber">Notifications</span> <span class="badge b-amber">Platform config</span> <span class="badge b-gray">Owner: Alkem program admin + Loyalife CSM</span></div>
+    </div>
+  </div>
+
+  <div class="action-item p1">
+    <div class="a-num">2</div>
+    <div>
+      <div class="a-title">Set approval SLAs for both levels — ASM (48h) and Head Office (72h)</div>
+      <div class="a-desc">The two-level approval chain has no enforced time limit. Claims can sit at either stage indefinitely. Define and enforce a 48-hour SLA for ASM approval and a 72-hour SLA for Head Office sign-off. Expired SLAs should auto-escalate and flag for manual intervention. This protects the motivational connection between the sales action and the reward.</div>
+      <div class="a-tag"><span class="badge b-amber">Process Config</span> <span class="badge b-gray">Owner: Alkem operations + Loyalife admin</span></div>
+    </div>
+  </div>
+
+  <div class="action-item p2">
+    <div class="a-num">3</div>
+    <div>
+      <div class="a-title">Complete the first program data export and establish a monthly cadence</div>
+      <div class="a-desc">No transaction data has been extracted since launch. Run the first export to establish a baseline: active members, claims submitted, claims approved/rejected, points issued, and redemptions. Once baseline is established, schedule a monthly export cadence. The account team needs visibility to make informed configuration decisions.</div>
+      <div class="a-tag"><span class="badge b-amber">Data Operations</span> <span class="badge b-gray">Owner: Loyalife CSM + Alkem account manager</span></div>
+    </div>
+  </div>
+
+  <div class="action-item p3">
+    <div class="a-num">4</div>
+    <div>
+      <div class="a-title">Add photo evidence requirement for visibility activity claims</div>
+      <div class="a-desc">Shelf display and promotional placement claims are currently approved without structured evidence. Add a mandatory photo upload field on visibility activity claim forms — one photo per activity type. This reduces manual verification effort for approvers, creates an audit trail, and reduces the risk of duplicate or fraudulent claims. A spot-check review process by the Area Sales Manager at the photo level is faster than full claim-by-claim review.</div>
+      <div class="a-tag"><span class="badge b-amber">Claim UX</span> <span class="badge b-amber">Configuration</span> <span class="badge b-gray">Owner: Loyalife product + Alkem field ops</span></div>
+    </div>
+  </div>
+
+  <div class="action-item p4">
+    <div class="a-num">5</div>
+    <div>
+      <div class="a-title">Confirm KYC requirements and communicate redemption readiness to members</div>
+      <div class="a-desc">It is unclear whether identity verification is configured as a gate before redemption, and whether members have been informed of what is required to redeem. Before the first redemption cycle opens, confirm the KYC configuration, run a verification campaign among enrolled members, and send a single communication clarifying: how to earn, how to verify, and how to redeem.</div>
+      <div class="a-tag"><span class="badge b-amber">Member Enablement</span> <span class="badge b-gray">Owner: Alkem compliance + Loyalife CSM</span></div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div>Alkem Rewards+ · Loyalife Multi-Client Analysis · June 2026</div>
+    <div>Page 13 of 13</div>
+  </div>
+</div>
+
+</body></html>
